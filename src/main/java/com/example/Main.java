@@ -2,9 +2,11 @@ package com.example;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.FileReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,13 +16,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 public class Main {
 
     public static void main(String[] args) {
         if (args.length == 0) {
             System.err.println("Ошибка: Укажите путь к входному файлу в качестве аргумента");
-            System.err.println("Пример: java -jar log-parser-1.0-SNAPSHOT-jar-with-dependencies.jar lng-4.txt");
+            System.err.println("Пример: java -jar solution.jar lng-4.txt.gz");
             return;
         }
 
@@ -56,11 +59,24 @@ public class Main {
 
     private static Set<String> readAndFilterUniqueLines(String filePath) throws IOException {
         Set<String> uniqueLines = new LinkedHashSet<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (isValidLine(line)) {
-                    uniqueLines.add(line);
+        // добавил поддержку .gz файлов
+        if (filePath.endsWith(".gz")) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    new GZIPInputStream(new FileInputStream(filePath)), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (isValidLine(line)) {
+                        uniqueLines.add(line);
+                    }
+                }
+            }
+        } else {
+            try (BufferedReader reader = new BufferedReader(new FileReader(filePath, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (isValidLine(line)) {
+                        uniqueLines.add(line);
+                    }
                 }
             }
         }
@@ -68,14 +84,25 @@ public class Main {
     }
 
     private static boolean isValidLine(String line) {
-        // тут просто фильтруем мусор
-        return line != null && !line.trim().isEmpty() && !line.contains("\"");
+        if (line == null || line.trim().isEmpty()) {
+            return false;
+        }
+
+        String[] parts = line.split(";", -1);
+        for (String part : parts) {
+            part = part.trim();
+            if (!part.isEmpty() && !part.matches("^\\d+$") && !part.matches("^\"\\d+\"$")) {
+                return false;
+            }
+        }
+        
+        return true;
     }
 
     private static Map<Integer, List<String>> groupLines(List<String> lines) {
         int n = lines.size();
-        DisjointSetUnion dsu = new DisjointSetUnion(n);
-        
+        DisjointSetUnion dsu = new DisjointSetUnion(n);    
+
         // тут мапа для быстрого поиска одинаковых значений
         Map<String, Integer> valueToLineIndex = new HashMap<>();
 
@@ -84,8 +111,13 @@ public class Main {
             String[] parts = line.split(";", -1);
             
             for (int j = 0; j < parts.length; j++) {
-                String value = parts[j];
-                if (value != null && !value.isEmpty()) {
+                String value = parts[j].trim();
+                
+                if (value.startsWith("\"") && value.endsWith("\"")) {
+                    value = value.substring(1, value.length() - 1).trim();
+                }
+
+                if (!value.isEmpty()) {
                     String key = j + ":" + value;
                     if (valueToLineIndex.containsKey(key)) {
                         dsu.union(i, valueToLineIndex.get(key));
