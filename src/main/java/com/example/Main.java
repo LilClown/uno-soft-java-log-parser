@@ -91,7 +91,7 @@ public class Main {
         String[] parts = line.split(";", -1);
         for (String part : parts) {
             part = part.trim();
-            if (!part.isEmpty() && !part.matches("^\\d+$") && !part.matches("^\"\\d+\"$")) {
+            if (!part.isEmpty() && !part.matches("^\\d+$") && !part.matches("^\"\\d*\"$")) {
                 return false;
             }
         }
