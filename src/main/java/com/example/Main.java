@@ -39,7 +39,7 @@ public class Main {
                 System.out.println("Не найдено валидных строк для обработки");
                 return;
             }
-            
+
             Map<Integer, List<String>> groups = groupLines(uniqueLines);
 
             writeGroupsToFile(groups, outputFilePath);
@@ -48,7 +48,6 @@ public class Main {
             long executionTime = endTime - startTime;
 
             System.out.println("Программа успешно выполнена.");
-            // сколько памяти выводить не стал, тем более что запускаемся с флагом
             System.out.printf("Время выполнения: %d мс.%n", executionTime);
 
         } catch (IOException e) {
@@ -59,7 +58,6 @@ public class Main {
 
     private static Set<String> readAndFilterUniqueLines(String filePath) throws IOException {
         Set<String> uniqueLines = new LinkedHashSet<>();
-        // добавил поддержку .gz файлов
         if (filePath.endsWith(".gz")) {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                     new GZIPInputStream(new FileInputStream(filePath)), StandardCharsets.UTF_8))) {
@@ -91,28 +89,27 @@ public class Main {
         String[] parts = line.split(";", -1);
         for (String part : parts) {
             part = part.trim();
-            if (!part.isEmpty() && !part.matches("^\\d+$") && !part.matches("^\"\\d*\"$")) {
+            if (!part.isEmpty() && !part.matches("^\\d+(\\.\\d+)?$") && !part.matches("^\"\\d*(\\.\\d*)?\"$")) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
     private static Map<Integer, List<String>> groupLines(List<String> lines) {
         int n = lines.size();
-        DisjointSetUnion dsu = new DisjointSetUnion(n);    
+        DisjointSetUnion dsu = new DisjointSetUnion(n);
 
-        // тут мапа для быстрого поиска одинаковых значений
         Map<String, Integer> valueToLineIndex = new HashMap<>();
 
         for (int i = 0; i < n; i++) {
             String line = lines.get(i);
             String[] parts = line.split(";", -1);
-            
+
             for (int j = 0; j < parts.length; j++) {
                 String value = parts[j].trim();
-                
+
                 if (value.startsWith("\"") && value.endsWith("\"")) {
                     value = value.substring(1, value.length() - 1).trim();
                 }
@@ -137,12 +134,11 @@ public class Main {
     }
 
     private static void writeGroupsToFile(Map<Integer, List<String>> groups, String filePath) throws IOException {
-        // оставляем только требуемые группы, где больше одного элемента
         List<List<String>> sortedGroups = groups.values().stream()
                 .filter(list -> list.size() > 1)
                 .sorted(Comparator.comparingInt(List<String>::size).reversed())
                 .collect(Collectors.toList());
-        
+
         long groupsWithMoreThanOneElement = sortedGroups.size();
         System.out.println("Количество полученных групп с более чем одним элементом: " + groupsWithMoreThanOneElement);
 
